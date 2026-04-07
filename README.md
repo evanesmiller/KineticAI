@@ -1,6 +1,6 @@
 # KineticAI
 
-AI-powered workout recommendation system using Flask, React, and Google Gemini.
+AI-powered Workout Recommendation & Grading System using Flask, React, and Google Gemini.
 
 ## Features
 - Personalized workout recommendations
