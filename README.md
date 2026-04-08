@@ -22,18 +22,26 @@ cd KineticAI
 ### Backend Setup
 
 ### 1. Create & Activate Virtual Environment
-`python3 -m venv venv`
+```
+python3 -m venv venv
+```
 
 Mac / Linux
 
-`source venv/bin/activate`
+```
+source venv/bin/activate
+```
 
 Windows
 
-`venv\Scripts\activate`
+```
+venv\Scripts\activate
+```
 
 ### 2. Install Dependencies
-`pip install -r requirements.txt`
+```
+pip install -r requirements.txt
+```
 
 ### 3. Replace Google Gemini API and Flask keys in .env file
 Gemini 2.5 Flash Lite (Free tier ~ 20 requests/day)
