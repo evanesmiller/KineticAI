@@ -16,7 +16,6 @@ from typing import Any
 from google import genai
 from google.genai import types
 
-
 def _client():
     key = os.environ.get("GEMINI_API_KEY", "")
     if not key or key == "your_gemini_api_key_here":
