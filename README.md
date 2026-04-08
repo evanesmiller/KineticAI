@@ -15,13 +15,15 @@ AI-powered Workout Recommendation & Grading System using Flask, React, and Googl
 
 ## Development Setup
 
-### Clone Repository
-git clone https://github.com/YOUR_USERNAME/KineticAI.git
+### 1. Clone Repository
+```
+git clone https://github.com/evanesmiller/KineticAI.git
 cd KineticAI
+```
 
-### Backend Setup
+## Backend Setup
 
-### 1. Create & Activate Virtual Environment
+### 2. Create & Activate Virtual Environment
 ```
 python3 -m venv venv
 ```
@@ -38,15 +40,15 @@ Windows
 venv\Scripts\activate
 ```
 
-### 2. Install Dependencies
+### 3. Install Dependencies
 ```
 pip install -r requirements.txt
 ```
 
-### 3. Replace Google Gemini API and Flask keys in .env file
+### 4. Replace Google Gemini API and Flask keys in .env file
 Gemini 2.5 Flash Lite (Free tier ~ 20 requests/day)
 
-### 4. Start Backend Server
+### 5. Start Backend Server
 ```
 cd backend
 python app.py
@@ -54,7 +56,7 @@ python app.py
 
 ### Frontend Setup
 
-### 5. Open New Terminal
+### 6. Open New Terminal
 ```
 cd KineticAI/frontend
 npm install
