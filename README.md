@@ -25,9 +25,11 @@ cd KineticAI
 `python3 -m venv venv`
 
 Mac / Linux
+
 `source venv/bin/activate`
 
 Windows
+
 `venv\Scripts\activate`
 
 ### 2. Install Dependencies
