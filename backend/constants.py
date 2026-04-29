@@ -50,12 +50,20 @@ FATIGUE_WINDOW_DAYS = 7
 # ---------------------------------------------------------------------------
 
 # RED  — muscle needs full rest (trained 2+ times this week, or very high volume)
-RED_VOLUME_THRESHOLD = 5_000    # lbs·reps (e.g. 2+ heavy compound sets on the same muscle)
-RED_SESSION_THRESHOLD = 2       # trained 2+ times in the past 7 days
+RED_VOLUME_THRESHOLD = 5_500    # lbs·reps (legacy — used by fatigue map only)
+RED_SESSION_THRESHOLD = 4       # trained 4+ times in the past 7 days
 
 # YELLOW — muscle was trained and needs rest before next session
-YELLOW_VOLUME_THRESHOLD = 1_500  # lbs·reps (roughly 1 solid working set on a muscle)
-YELLOW_SESSION_THRESHOLD = 1     # trained at least once in the past 7 days
+YELLOW_VOLUME_THRESHOLD = 2_500  # lbs·reps (legacy — used by fatigue map only)
+YELLOW_SESSION_THRESHOLD = 2     # trained at least twice in the past 7 days
+
+# Rep-based volume thresholds for the Volume evaluation category.
+# Based on hypertrophy norms: 1–3 exercises × 2–4 sets × 5–10 reps per muscle per session,
+# with 2 sessions/week as the ideal frequency target.
+REP_VOL_UNDERTRAINED = 20   # sets×reps/week — trained but barely any stimulus (−4)
+REP_VOL_IDEAL_MAX    = 240  # sets×reps/week — ceiling of ideal range (3 ex × 4 sets × 10 reps × 2 sessions)
+REP_VOL_YELLOW       = 360  # sets×reps/week — elevated, approaching overuse (−5)
+# above REP_VOL_YELLOW = red zone — −15 scaling up, capped at −25
 
 # Bodyweight exercise volume multiplier
 # Weight is stored as 0 for bodyweight moves; this substitutes a nominal
@@ -76,7 +84,7 @@ SECONDARY_FATIGUE_MULTIPLIER = 0.25
 INTENSITY_MULTIPLIERS = {
     "low":      0.75,
     "moderate": 1.00,
-    "high":     1.35,
+    "high":     1.25,
 }
 
 # ---------------------------------------------------------------------------
@@ -120,8 +128,8 @@ ANTAGONIST_MAX_RATIO = 2.5
 MIN_REST_DAYS_BETWEEN_SESSIONS = 1   # flag if same muscle trained on back-to-back days
 
 # Weekly frequency targets per muscle group
-MIN_WEEKLY_SESSIONS = 0   # 0 = no minimum enforced (muscles can rest all week)
-MAX_WEEKLY_SESSIONS = 3   # flag if a muscle group is trained more than 3x/week
+MIN_WEEKLY_SESSIONS = 1   # 0 = no minimum enforced (muscles can rest all week)
+MAX_WEEKLY_SESSIONS = 4   # flag if a muscle group is trained more than 4x/week
 
 # Weekly volume targets (sets × reps × weight) per muscle — used for "undertrained" flag
 # Set to 0 to disable undertrained warnings
@@ -134,8 +142,8 @@ MAX_EXERCISES_PER_SESSION  = 12   # flag if a single session has too many exerci
 # Score weights — how much each rule category contributes to the 0–100 score
 # Ranked by user: balance > frequency > rest > volume
 SCORE_WEIGHTS = {
-    "balance":   0.35,
-    "frequency": 0.25,
-    "rest":      0.22,
-    "volume":    0.18,
+    "balance":     0.35,
+    "consistency": 0.25,
+    "rest":        0.22,
+    "volume":      0.18,
 }

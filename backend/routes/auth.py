@@ -3,10 +3,13 @@ routes/auth.py
 --------------
 Authentication endpoints.
 
-POST /auth/register  — create a new account
-POST /auth/login     — start a session
-POST /auth/logout    — end the session
-GET  /auth/me        — return the currently logged-in user
+POST /auth/register         — create a new account
+POST /auth/login            — start a session
+POST /auth/logout           — end the session
+GET  /auth/me               — return the currently logged-in user
+GET  /auth/profile          — return profile fields (weight, height)
+PUT  /auth/profile          — update profile fields (weight, height)
+POST /auth/change-password  — change password (requires current password)
 """
 
 from flask import Blueprint, request, session
@@ -43,6 +46,30 @@ def register():
     if len(password) < 6:
         return error("password must be at least 6 characters.")
 
+    # Body weight and height are required at registration so the evaluation
+    # engine always has accurate values for volume and fatigue thresholds.
+    body_weight_lbs = data.get("body_weight_lbs")
+    height_in       = data.get("height_in")
+
+    if body_weight_lbs is None:
+        return error("body_weight_lbs is required.")
+    if height_in is None:
+        return error("height_in is required.")
+
+    try:
+        body_weight_lbs = float(body_weight_lbs)
+        if body_weight_lbs <= 0:
+            return error("body_weight_lbs must be a positive number.")
+    except (TypeError, ValueError):
+        return error("body_weight_lbs must be a number.")
+
+    try:
+        height_in = float(height_in)
+        if height_in <= 0:
+            return error("height_in must be a positive number.")
+    except (TypeError, ValueError):
+        return error("height_in must be a number.")
+
     db = get_db()
 
     # Check for duplicate username
@@ -55,8 +82,8 @@ def register():
     password_hash = generate_password_hash(password)
 
     cur = db.execute(
-        "INSERT INTO users (username, password_hash) VALUES (?, ?)",
-        (username, password_hash),
+        "INSERT INTO users (username, password_hash, body_weight_lbs, height_in) VALUES (?, ?, ?, ?)",
+        (username, password_hash, body_weight_lbs, height_in),
     )
     db.commit()
     user_id = cur.lastrowid
@@ -123,14 +150,137 @@ def me(user_id):
     """Return the currently authenticated user."""
     db = get_db()
     user = db.execute(
-        "SELECT id, username, created_at FROM users WHERE id = ?", (user_id,)
+        "SELECT id, username, body_weight_lbs, height_in, created_at FROM users WHERE id = ?",
+        (user_id,),
     ).fetchone()
 
     if user is None:
         return error("User not found.", 404)
 
     return success({
-        "id":         user["id"],
-        "username":   user["username"],
-        "created_at": user["created_at"],
+        "id":              user["id"],
+        "username":        user["username"],
+        "body_weight_lbs": user["body_weight_lbs"],
+        "height_in":       user["height_in"],
+        "created_at":      user["created_at"],
     })
+
+
+# ---------------------------------------------------------------------------
+# GET /auth/profile  |  PUT /auth/profile
+# ---------------------------------------------------------------------------
+@auth_bp.get("/profile")
+@login_required
+def get_profile(user_id):
+    """Return the user's profile fields."""
+    db = get_db()
+    user = db.execute(
+        "SELECT id, username, body_weight_lbs, height_in, created_at FROM users WHERE id = ?",
+        (user_id,),
+    ).fetchone()
+
+    if user is None:
+        return error("User not found.", 404)
+
+    return success({
+        "id":              user["id"],
+        "username":        user["username"],
+        "body_weight_lbs": user["body_weight_lbs"],
+        "height_in":       user["height_in"],
+        "created_at":      user["created_at"],
+    })
+
+
+@auth_bp.put("/profile")
+@login_required
+def update_profile(user_id):
+    """
+    Update body weight and height for the current user.
+
+    Request JSON (all fields optional):
+        { "body_weight_lbs": 175.5, "height_in": 70 }
+    """
+    data = request.get_json(silent=True) or {}
+
+    body_weight_lbs = data.get("body_weight_lbs")
+    height_in       = data.get("height_in")
+
+    if body_weight_lbs is not None:
+        try:
+            body_weight_lbs = float(body_weight_lbs)
+            if body_weight_lbs <= 0:
+                return error("body_weight_lbs must be a positive number.")
+        except (TypeError, ValueError):
+            return error("body_weight_lbs must be a number.")
+
+    if height_in is not None:
+        try:
+            height_in = float(height_in)
+            if height_in <= 0:
+                return error("height_in must be a positive number.")
+        except (TypeError, ValueError):
+            return error("height_in must be a number.")
+
+    db = get_db()
+    db.execute(
+        """UPDATE users
+           SET body_weight_lbs = COALESCE(?, body_weight_lbs),
+               height_in       = COALESCE(?, height_in)
+           WHERE id = ?""",
+        (body_weight_lbs, height_in, user_id),
+    )
+    db.commit()
+
+    user = db.execute(
+        "SELECT id, username, body_weight_lbs, height_in, created_at FROM users WHERE id = ?",
+        (user_id,),
+    ).fetchone()
+
+    return success({
+        "id":              user["id"],
+        "username":        user["username"],
+        "body_weight_lbs": user["body_weight_lbs"],
+        "height_in":       user["height_in"],
+        "created_at":      user["created_at"],
+    })
+
+
+# ---------------------------------------------------------------------------
+# POST /auth/change-password
+# ---------------------------------------------------------------------------
+@auth_bp.post("/change-password")
+@login_required
+def change_password(user_id):
+    """
+    Change the current user's password.
+
+    Request JSON:
+        { "current_password": "old", "new_password": "new123" }
+    """
+    data             = request.get_json(silent=True) or {}
+    current_password = (data.get("current_password") or "").strip()
+    new_password     = (data.get("new_password") or "").strip()
+
+    if not current_password:
+        return error("current_password is required.")
+    if not new_password:
+        return error("new_password is required.")
+    if len(new_password) < 6:
+        return error("new_password must be at least 6 characters.")
+
+    db = get_db()
+    user = db.execute(
+        "SELECT password_hash FROM users WHERE id = ?", (user_id,)
+    ).fetchone()
+
+    if user is None:
+        return error("User not found.", 404)
+
+    if not check_password_hash(user["password_hash"], current_password):
+        return error("Current password is incorrect.", 401)
+
+    new_hash = generate_password_hash(new_password)
+    db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user_id))
+    db.commit()
+
+    return success({"message": "Password updated successfully."})

@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS users (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     username        TEXT    NOT NULL UNIQUE,
     password_hash   TEXT    NOT NULL,
+    body_weight_lbs REAL,
+    height_in       REAL,
     created_at      TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 

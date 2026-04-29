@@ -37,11 +37,10 @@ def _lookup_from_history(db, user_id: int, exercise_name: str):
         WHERE w.user_id = ?
           AND (
               LOWER(e.name) = ?
-              OR LOWER(e.name) = ? || ' (primary)'
               OR LOWER(e.name) = ? || ' (secondary)'
           )
         """,
-        (user_id, base, base, base),
+        (user_id, base, base),
     ).fetchall()
 
     if not rows:

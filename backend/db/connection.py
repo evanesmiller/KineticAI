@@ -46,6 +46,15 @@ def init_db(db_path: str = DB_PATH) -> None:
     schema = SCHEMA_PATH.read_text()
     with get_connection(db_path) as conn:
         conn.executescript(schema)
+        # Migrations: add columns introduced after initial schema.
+        for col, ddl in [
+            ("body_weight_lbs", "ALTER TABLE users ADD COLUMN body_weight_lbs REAL"),
+            ("height_in",       "ALTER TABLE users ADD COLUMN height_in REAL"),
+        ]:
+            existing = conn.execute("PRAGMA table_info(users)").fetchall()
+            if not any(row["name"] == col for row in existing):
+                conn.execute(ddl)
+        conn.commit()
     print(f"[db] Initialized database at: {db_path}")
 
 

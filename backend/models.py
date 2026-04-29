@@ -28,6 +28,8 @@ from constants import (
     YELLOW_VOLUME_THRESHOLD,
 )
 
+_FATIGUE_RECOVERY_DAYS = 3  # days after a single-session week before muscle turns green
+
 
 # ---------------------------------------------------------------------------
 # Dataclasses
@@ -324,65 +326,48 @@ def refresh_muscle_fatigue(
     conn: sqlite3.Connection, user_id: int, muscle_group: str
 ) -> None:
     """
-    Recompute the rolling 7-day fatigue score for one muscle group and
+    Recompute the current-week fatigue color for one muscle group and
     upsert the result into muscle_fatigue_cache.
+
+    Rules:
+      red    — 2+ distinct workout days this week targeting the muscle
+      yellow — 1 distinct workout day this week AND < 3 days since that workout
+      green  — 0 days this week, or 1 day but 3+ days ago
+
+    "This week" = Monday of the current calendar week through today, so
+    workouts from a previous week never bleed into the current state.
 
     Called automatically by insert_workout() and delete_workout().
     Can also be called manually to force a cache refresh.
     """
     mg_id = _get_muscle_group_id(conn, muscle_group)
-    cutoff = (date.today() - timedelta(days=FATIGUE_WINDOW_DAYS)).isoformat()
 
-    # Aggregate volume and session count for this muscle over the past 7 days.
-    # Secondary exercises (name ends with " (secondary)") are discounted by
-    # SECONDARY_FATIGUE_MULTIPLIER and excluded from the session count so they
-    # don't drive the muscle to yellow/red on their own.
+    today      = date.today()
+    week_start = (today - timedelta(days=today.weekday())).isoformat()  # Monday
+
     agg = conn.execute(
         """
         SELECT
-            COUNT(DISTINCT CASE
-                WHEN e.name NOT LIKE '%(secondary)'
-                THEN w.id END)                          AS weekly_sessions,
-            COALESCE(SUM(
-                e.sets * e.reps *
-                CASE WHEN e.weight_lbs > 0 THEN e.weight_lbs
-                     ELSE :bw END *
-                CASE w.intensity
-                    WHEN 'low'      THEN :low
-                    WHEN 'moderate' THEN :mod
-                    WHEN 'high'     THEN :high
-                    ELSE 1.0 END *
-                CASE WHEN e.name LIKE '%(secondary)'
-                     THEN :sec ELSE 1.0 END
-            ), 0.0)                                     AS weekly_volume
+            COUNT(DISTINCT w.date) AS workout_days,
+            MAX(w.date)            AS last_workout_date
         FROM workouts w
         JOIN exercises e ON e.workout_id = w.id
-        WHERE w.user_id        = :user_id
+        WHERE w.user_id         = :user_id
           AND e.muscle_group_id = :mg_id
-          AND w.date            >= :cutoff
+          AND w.date            >= :week_start
         """,
-        {
-            "user_id": user_id,
-            "mg_id":   mg_id,
-            "cutoff":  cutoff,
-            "bw":      BODYWEIGHT_NOMINAL_LBS,
-            "low":     INTENSITY_MULTIPLIERS["low"],
-            "mod":     INTENSITY_MULTIPLIERS["moderate"],
-            "high":    INTENSITY_MULTIPLIERS["high"],
-            "sec":     SECONDARY_FATIGUE_MULTIPLIER,
-        },
+        {"user_id": user_id, "mg_id": mg_id, "week_start": week_start},
     ).fetchone()
 
-    weekly_volume   = agg["weekly_volume"]
-    weekly_sessions = agg["weekly_sessions"]
+    workout_days      = agg["workout_days"] or 0
+    last_workout_date = agg["last_workout_date"]  # ISO string or None
 
-    # Determine highlight color
-    if (weekly_volume >= RED_VOLUME_THRESHOLD or
-            weekly_sessions >= RED_SESSION_THRESHOLD):
+    if workout_days >= 2:
         color = "red"
-    elif (weekly_volume >= YELLOW_VOLUME_THRESHOLD or
-          weekly_sessions >= YELLOW_SESSION_THRESHOLD):
-        color = "yellow"
+    elif workout_days == 1:
+        # Yellow until _FATIGUE_RECOVERY_DAYS have passed since the workout
+        recovery_cutoff = (today - timedelta(days=_FATIGUE_RECOVERY_DAYS)).isoformat()
+        color = "yellow" if last_workout_date > recovery_cutoff else "green"
     else:
         color = "green"
 
@@ -397,7 +382,7 @@ def refresh_muscle_fatigue(
             highlight_color = excluded.highlight_color,
             last_updated    = excluded.last_updated
         """,
-        (user_id, mg_id, weekly_volume, weekly_sessions, color),
+        (user_id, mg_id, 0.0, workout_days, color),
     )
 
 
@@ -419,9 +404,14 @@ def get_muscle_highlight_map(
             ...
         }
     """
+    today      = date.today()
+    week_start = (today - timedelta(days=today.weekday())).isoformat()
+
     rows = conn.execute(
         """
-        SELECT mg.name, COALESCE(mfc.highlight_color, 'green') AS highlight_color
+        SELECT mg.name,
+               COALESCE(mfc.highlight_color, 'green') AS highlight_color,
+               COALESCE(mfc.weekly_sessions, 0)       AS workout_days
         FROM muscle_groups mg
         LEFT JOIN muscle_fatigue_cache mfc
                ON mfc.muscle_group_id = mg.id
@@ -429,7 +419,52 @@ def get_muscle_highlight_map(
         """,
         (user_id,),
     ).fetchall()
-    return {row["name"]: row["highlight_color"] for row in rows}
+
+    # Unique primary exercise names per muscle for the current week
+    ex_rows = conn.execute(
+        """
+        SELECT mg.name AS muscle, e.name AS exercise
+        FROM   exercises e
+        JOIN   muscle_groups mg ON mg.id = e.muscle_group_id
+        JOIN   workouts w       ON w.id  = e.workout_id
+        WHERE  w.user_id = ?
+          AND  w.date   >= ?
+          AND  e.name NOT LIKE '%(secondary)'
+        GROUP  BY mg.name, e.name
+        ORDER  BY mg.name, e.name
+        """,
+        (user_id, week_start),
+    ).fetchall()
+
+    # All-time distinct workout days per muscle
+    total_rows = conn.execute(
+        """
+        SELECT mg.name AS muscle, COUNT(DISTINCT w.date) AS total_days
+        FROM   exercises e
+        JOIN   muscle_groups mg ON mg.id = e.muscle_group_id
+        JOIN   workouts w       ON w.id  = e.workout_id
+        WHERE  w.user_id = ?
+          AND  e.name NOT LIKE '%(secondary)'
+        GROUP  BY mg.name
+        """,
+        (user_id,),
+    ).fetchall()
+
+    exercises_by_muscle: dict[str, list[str]] = {}
+    for r in ex_rows:
+        exercises_by_muscle.setdefault(r["muscle"], []).append(r["exercise"])
+
+    total_by_muscle: dict[str, int] = {r["muscle"]: r["total_days"] for r in total_rows}
+
+    return {
+        row["name"]: {
+            "color":        row["highlight_color"],
+            "workout_days": row["workout_days"],
+            "total_days":   total_by_muscle.get(row["name"], 0),
+            "exercises":    exercises_by_muscle.get(row["name"], []),
+        }
+        for row in rows
+    }
 
 
 def refresh_all_muscle_fatigue(conn: sqlite3.Connection, user_id: int) -> None:

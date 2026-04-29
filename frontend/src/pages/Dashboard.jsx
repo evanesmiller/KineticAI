@@ -2,6 +2,7 @@ import { useFetch } from "../hooks/useFetch";
 import { useAuth } from "../context/AuthContext";
 import Layout from "../components/Layout";
 import WorkoutCard from "../components/WorkoutCard";
+import MuscleModel from "../components/MuscleModel";
 
 function gradeColor(grade) {
   return { A: "#22c55e", B: "#a78bfa", C: "#f59e0b", D: "#f97316", F: "#ef4444" }[grade] || "#6b6b8f";
@@ -154,19 +155,7 @@ export default function Dashboard() {
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.25rem", marginBottom:"1.5rem" }}>
         <div style={{ background:"#0f0f1a", border:"1px solid #1e1e35", borderRadius:"0.75rem", padding:"1.25rem" }}>
           <SectionHeading label="Muscle Fatigue" />
-          <div style={{ display:"flex", gap:"1rem", marginBottom:"0.75rem" }}>
-            {[["red","Needs Rest"],["yellow","Ready Soon"],["green","Ready"]].map(([c,l])=>(
-              <div key={c} style={{ display:"flex", alignItems:"center", gap:"0.3rem" }}>
-                <div style={{ width:6, height:6, borderRadius:"50%", background:fatigueColor(c) }} />
-                <span style={{ fontSize:"0.62rem", color:"#3a3a5c", fontFamily:"'DM Sans',sans-serif" }}>{l}</span>
-              </div>
-            ))}
-          </div>
-          {/* 3D model placeholder */}
-          <div style={{ background:"rgba(109,40,217,0.04)", border:"1px dashed #2a2a45", borderRadius:"0.5rem", height:72, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"0.75rem" }}>
-            <span style={{ fontSize:"0.65rem", color:"#2a2a45", fontFamily:"'Barlow Condensed',sans-serif", letterSpacing:"0.12em", fontWeight:600 }}>3D MODEL — COMING SOON</span>
-          </div>
-          {fLoad ? <Shimmer /> : <FatigueGrid fatigueMap={fatigue} />}
+          {fLoad ? <Shimmer /> : <MuscleModel fatigueMap={fatigue || {}} />}
         </div>
 
         <div style={{ background:"#0f0f1a", border:"1px solid #1e1e35", borderRadius:"0.75rem", padding:"1.25rem" }}>
@@ -183,8 +172,8 @@ export default function Dashboard() {
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"1rem" }}>
           <SectionHeading label="Recent Workouts" />
           {allWorkouts.length > thisWeek.length && (
-            <a href="/history" style={{ fontSize:"0.7rem", color:"#6d28d9", fontFamily:"'DM Sans',sans-serif", textDecoration:"none" }}
-               onMouseEnter={e=>e.target.style.color="#a78bfa"} onMouseLeave={e=>e.target.style.color="#6d28d9"}>
+            <a href="/history" style={{ fontSize:"0.7rem", color:"#8b5cf6", fontFamily:"'DM Sans',sans-serif", textDecoration:"none" }}
+               onMouseEnter={e=>e.target.style.color="#a78bfa"} onMouseLeave={e=>e.target.style.color="#8b5cf6"}>
               View all →
             </a>
           )}

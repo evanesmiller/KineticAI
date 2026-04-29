@@ -412,10 +412,10 @@ export default function LogWorkout() {
           weight_lbs:   Number(ex.weight_lbs),
         });
 
-        // Additional primary muscles — full volume, "(primary)" suffix
+        // Additional primary muscles — full volume, no suffix
         primaries.slice(1).forEach(m=>{
           exercisesPayload.push({
-            name:         `${ex.name.trim()} (primary)`,
+            name:         ex.name.trim(),
             muscle_group: m.muscle,
             sets:         Number(ex.sets),
             reps:         Number(ex.reps),

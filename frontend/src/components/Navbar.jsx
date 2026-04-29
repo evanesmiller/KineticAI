@@ -9,13 +9,8 @@ const NAV_ITEMS = [
 ];
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
-
-  async function handleLogout() {
-    await logout();
-    navigate("/login");
-  }
 
   return (
     <nav style={{
@@ -36,8 +31,7 @@ export default function Navbar() {
         justifyContent: "space-between",
       }}>
         {/* Logo */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", textDecoration: "none" }}
-             onClick={() => navigate("/dashboard")}
+        <div onClick={() => navigate("/dashboard")}
              role="button" tabIndex={0}
              onKeyDown={e => e.key === "Enter" && navigate("/dashboard")}
              style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "0.6rem" }}>
@@ -85,7 +79,7 @@ export default function Navbar() {
           ))}
         </div>
 
-        {/* User + logout */}
+        {/* User + profile */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <span style={{
             fontSize:   "0.75rem",
@@ -94,7 +88,7 @@ export default function Navbar() {
           }}>
             {user?.username}
           </span>
-          <button onClick={handleLogout} style={{
+          <button onClick={() => navigate("/profile")} style={{
             background:    "transparent",
             border:        "1px solid #1e1e35",
             borderRadius:  "6px",
@@ -110,7 +104,7 @@ export default function Navbar() {
           }}
           onMouseEnter={e => { e.target.style.borderColor = "#6d28d9"; e.target.style.color = "#a78bfa"; }}
           onMouseLeave={e => { e.target.style.borderColor = "#1e1e35"; e.target.style.color = "#6b6b8f"; }}>
-            Sign Out
+            Profile
           </button>
         </div>
       </div>

@@ -47,6 +47,8 @@ def highlight_map(user_id):
         }
     """
     db = get_db()
+    refresh_all_muscle_fatigue(db, user_id)
+    db.commit()
     muscle_map = get_muscle_highlight_map(db, user_id)
     return success(muscle_map)
 

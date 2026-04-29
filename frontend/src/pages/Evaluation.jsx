@@ -89,7 +89,7 @@ function ScoreBar({ score }) {
 
 // ── Category card ──────────────────────────────────────────────────────────
 function CategoryCard({ name, score, findings }) {
-  const icons = { balance:"⚖", frequency:"🔄", rest:"😴", volume:"📊" };
+  const icons = { balance:"⚖", consistency:"📅", rest:"😴", volume:"📊" };
   return (
     <Card style={{ transition:"border-color 0.15s" }}
       onMouseEnter={e=>e.currentTarget.style.borderColor="#3d1f7a"}
@@ -339,7 +339,7 @@ export default function Evaluation() {
         <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:"1rem" }}>
           {loading
             ? [...Array(4)].map((_,i) => <Shimmer key={i} height={160} />)
-            : ["balance","frequency","rest","volume"].map(cat => (
+            : ["balance","consistency","rest","volume"].map(cat => (
                 <CategoryCard key={cat} name={cat}
                   score={categories[cat]?.score ?? 0}
                   findings={categories[cat]?.findings ?? []} />

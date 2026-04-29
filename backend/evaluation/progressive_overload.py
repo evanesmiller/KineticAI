@@ -91,6 +91,16 @@ def analyse_overload(conn: sqlite3.Connection, user_id: int) -> OverloadResult:
             score=100.0,
         )
 
+    # Use the user's stored body weight for bodyweight exercise substitution.
+    bw_row = conn.execute(
+        "SELECT body_weight_lbs FROM users WHERE id = ?", (user_id,)
+    ).fetchone()
+    body_weight = (
+        float(bw_row["body_weight_lbs"])
+        if bw_row and bw_row["body_weight_lbs"]
+        else BODYWEIGHT_NOMINAL_LBS
+    )
+
     # ── Bucket volume and peak weight by (muscle, week_start) ─────────────
     weekly_volume: Dict[str, Dict[date, float]] = defaultdict(dict)
     weekly_peak:   Dict[str, Dict[date, float]] = defaultdict(dict)
@@ -100,7 +110,7 @@ def analyse_overload(conn: sqlite3.Connection, user_id: int) -> OverloadResult:
         d         = date.fromisoformat(row["date"])
         week      = _iso_week_start(d)
         mult      = INTENSITY_MULTIPLIERS.get(row["intensity"], 1.0)
-        eff_wt    = row["weight_lbs"] if row["weight_lbs"] > 0 else BODYWEIGHT_NOMINAL_LBS
+        eff_wt    = row["weight_lbs"] if row["weight_lbs"] > 0 else body_weight
         vol       = row["sets"] * row["reps"] * eff_wt * mult
 
         weekly_volume[muscle][week] = weekly_volume[muscle].get(week, 0.0) + vol
@@ -212,6 +222,30 @@ def analyse_overload(conn: sqlite3.Connection, user_id: int) -> OverloadResult:
 
     if not statuses:
         findings.append("Not enough history to assess progressive overload yet.")
+
+    # ── Relative-strength milestones ──────────────────────────────────────
+    # Only shown when the user has set their body weight. We check each muscle's
+    # all-time peak weight against the body weight and emit milestone findings.
+    # Thresholds are intentionally generous — they should feel like achievements.
+    BW_MILESTONES = [
+        (2.0, "elite territory"),
+        (1.5, "very strong"),
+        (1.0, "above body weight — a solid milestone"),
+    ]
+
+    for status in statuses:
+        if status.peak_weight is None:
+            continue
+        ratio = status.peak_weight / body_weight
+        muscle_label = status.muscle.replace("_", " ")
+        # Find the highest milestone this muscle has reached
+        for threshold, label in BW_MILESTONES:
+            if ratio >= threshold:
+                findings.append(
+                    f"Your peak {muscle_label} lift is {ratio:.2f}× body weight "
+                    f"({status.peak_weight:.0f} lbs) — {label}. ✓"
+                )
+                break  # only report the highest milestone per muscle
 
     final_score = max(0.0, min(100.0, 100.0 + score_delta))
     return OverloadResult(statuses=statuses, findings=findings, score=final_score)

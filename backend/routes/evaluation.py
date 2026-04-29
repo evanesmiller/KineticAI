@@ -18,15 +18,16 @@ evaluation_bp = Blueprint("evaluation", __name__, url_prefix="/evaluation")
 
 # Increment this whenever the Gemini prompt logic changes so existing
 # caches are automatically invalidated on the next request.
-PROMPT_VERSION = 2
+PROMPT_VERSION = 7
 
 
 def _window_fingerprint(db, user_id: int) -> str:
     """
     Returns a string that uniquely identifies the current set of workouts
     in the 7-day window AND the prompt version.
-    Changes whenever a workout is added/deleted or the prompt is updated.
-    Format: "v<version>:<max_id>:<count>"
+    Changes whenever a workout is added/deleted, the prompt is updated,
+    or the user's body weight changes (since that affects the Gemini narrative).
+    Format: "v<version>:<max_id>:<count>:bw<body_weight>"
     """
     cutoff = (date.today() - timedelta(days=FATIGUE_WINDOW_DAYS)).isoformat()
     row = db.execute(
@@ -34,7 +35,16 @@ def _window_fingerprint(db, user_id: int) -> str:
         "FROM workouts WHERE user_id = ? AND date >= ?",
         (user_id, cutoff),
     ).fetchone()
-    return f"v{PROMPT_VERSION}:{row['max_id']}:{row['cnt']}"
+    # Include all-time count so consistency score re-evaluates when any historical
+    # workout is added or removed, not just those in the current 7-day window.
+    all_time = db.execute(
+        "SELECT COUNT(*) as total FROM workouts WHERE user_id = ?", (user_id,)
+    ).fetchone()
+    profile = db.execute(
+        "SELECT body_weight_lbs FROM users WHERE id = ?", (user_id,)
+    ).fetchone()
+    bw = profile["body_weight_lbs"] if profile and profile["body_weight_lbs"] else "none"
+    return f"v{PROMPT_VERSION}:{row['max_id']}:{row['cnt']}:all{all_time['total']}:bw{bw}"
 
 
 @evaluation_bp.get("/")

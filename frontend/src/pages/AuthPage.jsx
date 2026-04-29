@@ -81,6 +81,9 @@ export default function AuthPage() {
   const [username, setUsername]   = useState("");
   const [password, setPassword]   = useState("");
   const [confirm, setConfirm]     = useState("");
+  const [weightLbs, setWeightLbs] = useState("");
+  const [heightFt,  setHeightFt]  = useState("");
+  const [heightIn,  setHeightIn]  = useState("");
   const [error, setError]         = useState("");
   const [loading, setLoading]     = useState(false);
 
@@ -93,6 +96,9 @@ export default function AuthPage() {
     setUsername("");
     setPassword("");
     setConfirm("");
+    setWeightLbs("");
+    setHeightFt("");
+    setHeightIn("");
   }
 
   async function handleSubmit(e) {
@@ -106,12 +112,19 @@ export default function AuthPage() {
     if (mode === "register") {
       if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
       if (password !== confirm) { setError("Passwords do not match."); return; }
+      if (!weightLbs || parseFloat(weightLbs) <= 0) { setError("Please enter your body weight."); return; }
+      if (!heightFt && !heightIn) { setError("Please enter your height."); return; }
     }
 
     setLoading(true);
     try {
-      if (mode === "login")    await login(username, password);
-      if (mode === "register") await register(username, password);
+      if (mode === "login") {
+        await login(username, password);
+      }
+      if (mode === "register") {
+        const totalInches = (parseFloat(heightFt || 0) * 12) + parseFloat(heightIn || 0);
+        await register(username, password, parseFloat(weightLbs), totalInches);
+      }
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);
@@ -183,7 +196,7 @@ export default function AuthPage() {
               />
             </div>
 
-            {/* Confirm password (always rendered, hidden in login mode) */}
+            {/* Confirm password (register only) */}
             <div style={{ overflow: "hidden", height: mode === "register" ? "auto" : 0, marginTop: mode === "register" ? 0 : "-1rem", transition: "height 0.8s ease" }}>
               <label style={{ display: "block", fontSize: "0.7rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "#6b6b8f", marginBottom: "0.4rem", fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600 }}>
                 Confirm Password
@@ -197,6 +210,59 @@ export default function AuthPage() {
                 autoComplete="new-password"
                 disabled={loading || mode === "login"}
               />
+            </div>
+
+            {/* Body weight (register only) */}
+            <div style={{ overflow: "hidden", height: mode === "register" ? "auto" : 0, transition: "height 0.8s ease" }}>
+              <label style={{ display: "block", fontSize: "0.7rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "#6b6b8f", marginBottom: "0.4rem", fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600 }}>
+                Body Weight (lbs)
+              </label>
+              <input
+                className="input-field"
+                type="number"
+                min="1"
+                step="0.1"
+                placeholder="e.g. 175"
+                value={weightLbs}
+                onChange={e => setWeightLbs(e.target.value)}
+                disabled={loading || mode === "login"}
+              />
+            </div>
+
+            {/* Height (register only) */}
+            <div style={{ overflow: "hidden", height: mode === "register" ? "auto" : 0, transition: "height 0.8s ease" }}>
+              <label style={{ display: "block", fontSize: "0.7rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "#6b6b8f", marginBottom: "0.4rem", fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600 }}>
+                Height
+              </label>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <div style={{ flex: 1 }}>
+                  <input
+                    className="input-field"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="ft"
+                    value={heightFt}
+                    onChange={e => setHeightFt(e.target.value)}
+                    disabled={loading || mode === "login"}
+                  />
+                  <div style={{ fontSize: "0.6rem", color: "#3a3a5c", fontFamily: "'DM Sans',sans-serif", marginTop: "0.25rem" }}>feet</div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <input
+                    className="input-field"
+                    type="number"
+                    min="0"
+                    max="11"
+                    step="1"
+                    placeholder="in"
+                    value={heightIn}
+                    onChange={e => setHeightIn(e.target.value)}
+                    disabled={loading || mode === "login"}
+                  />
+                  <div style={{ fontSize: "0.6rem", color: "#3a3a5c", fontFamily: "'DM Sans',sans-serif", marginTop: "0.25rem" }}>inches</div>
+                </div>
+              </div>
             </div>
 
             {/* Error */}
