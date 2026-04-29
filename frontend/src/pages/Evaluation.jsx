@@ -146,41 +146,91 @@ function SuggestionCard({ name, muscle_groups, reason, priority }) {
   );
 }
 
-// ── Progressive overload table ─────────────────────────────────────────────
-function OverloadTable({ statuses }) {
+// ── Progressive overload grid ──────────────────────────────────────────────
+const OVERLOAD_FILTERS = [
+  { key:"progressing", label:"Progressing", hex:"#22c55e" },
+  { key:"stagnating",  label:"Stagnating",  hex:"#f59e0b" },
+  { key:"regressing",  label:"Regressing",  hex:"#ef4444" },
+  { key:"new",         label:"New",         hex:"#6b6b8f" },
+];
+const PRIORITY_ORDER = { progressing:0, stagnating:1, regressing:2, new:3 };
+
+function OverloadGrid({ statuses }) {
+  const [hiddenTrends, setHiddenTrends] = useState(new Set());
+
   if (!statuses?.length) return (
     <p style={{ fontSize:"0.75rem", color:"#3a3a5c", fontFamily:"'DM Sans',sans-serif" }}>Not enough history to assess overload yet.</p>
   );
-  const active = statuses.filter(s => s.trend !== "new");
-  if (!active.length) return (
-    <p style={{ fontSize:"0.75rem", color:"#3a3a5c", fontFamily:"'DM Sans',sans-serif" }}>Need at least 2 weeks of data per muscle.</p>
-  );
+
+  function toggleTrend(trend) {
+    setHiddenTrends(prev => {
+      const next = new Set(prev);
+      next.has(trend) ? next.delete(trend) : next.add(trend);
+      return next;
+    });
+  }
+
+  const visible = [...statuses]
+    .filter(s => !hiddenTrends.has(s.trend))
+    .sort((a, b) => (PRIORITY_ORDER[a.trend] ?? 4) - (PRIORITY_ORDER[b.trend] ?? 4));
+
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:"0.35rem" }}>
-      {active.map((s, i) => {
-        const color = trendColor(s.trend);
-        return (
-          <div key={i} style={{ display:"flex", alignItems:"center", gap:"0.75rem", padding:"0.5rem 0.75rem", background:"#151525", borderRadius:"6px" }}>
-            <div style={{ width:7, height:7, borderRadius:"50%", background:color, flexShrink:0 }} />
-            <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:"0.75rem", color:"#9999bb", flex:1, textTransform:"capitalize" }}>
-              {s.muscle.replace(/_/g," ")}
-            </span>
-            <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:"0.72rem", letterSpacing:"0.1em", textTransform:"uppercase", color, minWidth:80, textAlign:"right" }}>
-              {s.trend}
-            </span>
-            {s.pct_change !== null && (
-              <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:"0.7rem", color: s.pct_change >= 0 ? "#22c55e" : "#ef4444", minWidth:52, textAlign:"right" }}>
-                {s.pct_change >= 0 ? "+" : ""}{s.pct_change}%
-              </span>
-            )}
-            {s.peak_weight && (
-              <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:"0.68rem", color:"#3a3a5c", minWidth:64, textAlign:"right" }}>
-                peak {s.peak_weight} lbs
-              </span>
-            )}
-          </div>
-        );
-      })}
+    <div>
+      {/* 2-row muscle bullets */}
+      <div style={{ display:"grid", gridTemplateRows:"repeat(2,auto)", gridAutoFlow:"column", gridAutoColumns:"1fr", gap:"0.5rem", marginBottom:"1rem" }}>
+        {visible.map((s, i) => {
+          const color = trendColor(s.trend);
+          const pctLabel = s.pct_change !== null
+            ? `${s.pct_change >= 0 ? "+" : ""}${s.pct_change}% since first logged`
+            : "log again to track progression";
+          return (
+            <div key={i} style={{ background:"#151525", borderRadius:"6px", padding:"0.55rem 0.75rem", borderLeft:`3px solid ${color}33`, borderTop:`1px solid #1e1e35`, borderRight:`1px solid #1e1e35`, borderBottom:`1px solid #1e1e35` }}>
+              <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:"0.82rem", color:"#eeeeff", textTransform:"capitalize", marginBottom:"0.1rem" }}>
+                {s.muscle.replace(/_/g," ")}
+              </div>
+              {s.exercise_name && (
+                <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:"0.67rem", color:"#6b6b8f", marginBottom:"0.15rem", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  {s.exercise_name}
+                </div>
+              )}
+              {s.first_weight != null && s.peak_weight != null && s.pct_change !== null && (
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:"0.63rem", color:"#6b6b8f" }}>
+                  {s.first_weight} → {s.peak_weight} lbs
+                </div>
+              )}
+              <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:"0.65rem", color, marginTop:"0.2rem", lineHeight:1.3 }}>
+                {pctLabel}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Filter legend */}
+      <div style={{ display:"flex", gap:"1rem", flexWrap:"wrap", justifyContent:"center", paddingTop:"0.75rem" }}>
+        {OVERLOAD_FILTERS.map(({ key, label, hex }) => {
+          const count = statuses.filter(s => s.trend === key).length;
+          if (!count) return null;
+          const hidden = hiddenTrends.has(key);
+          return (
+            <div key={key} onClick={() => toggleTrend(key)}
+              style={{ display:"flex", alignItems:"center", gap:"0.35rem", cursor:"pointer", userSelect:"none" }}>
+              <div style={{
+                width:8, height:8, borderRadius:"50%",
+                background: hidden ? "#2a2a45" : hex,
+                boxShadow:  hidden ? "none" : `0 0 6px 2px ${hex}`,
+                transition: "all 0.2s",
+              }} />
+              <span style={{
+                fontSize:"0.72rem",
+                color: hidden ? "#3a3a5c" : "#9999bb",
+                fontFamily:"'DM Sans',sans-serif",
+                transition:"color 0.2s",
+              }}>{label}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -364,57 +414,54 @@ export default function Evaluation() {
       {/* ── Row 4: Advanced insights ── */}
       <div>
         <SectionHeading label="Advanced Insights" />
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.25rem" }}>
 
-          {/* Progressive overload */}
-          <Card>
+        {/* Progressive Overload — full width */}
+        <Card style={{ marginBottom:"1.25rem", transition:"border-color 0.15s" }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = "#3d1f7a"}
+          onMouseLeave={e => e.currentTarget.style.borderColor = "#1e1e35"}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"0.9rem" }}>
+            <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:"0.8rem", letterSpacing:"0.1em", textTransform:"uppercase", color:"#eeeeff" }}>
+              Progressive Overload
+            </span>
+            {overload.score !== undefined && (
+              <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:800, fontSize:"0.9rem", color:scoreColor(overload.score) }}>
+                {Math.round(overload.score)}/100
+              </span>
+            )}
+          </div>
+          {loading ? <Shimmer height={200} /> : <OverloadGrid statuses={overload.muscles} />}
+        </Card>
+
+        {/* Training Split + Recovery Patterns — side by side */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.25rem" }}>
+          <Card style={{ transition:"border-color 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = "#3d1f7a"}
+            onMouseLeave={e => e.currentTarget.style.borderColor = "#1e1e35"}>
+            <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:"0.8rem", letterSpacing:"0.1em", textTransform:"uppercase", color:"#eeeeff", display:"block", marginBottom:"0.75rem" }}>
+              Training Split
+            </span>
+            {loading ? <Shimmer height={80} /> : <SplitCard split={split} />}
+          </Card>
+
+          <Card style={{ transition:"border-color 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = "#3d1f7a"}
+            onMouseLeave={e => e.currentTarget.style.borderColor = "#1e1e35"}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"0.75rem" }}>
               <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:"0.8rem", letterSpacing:"0.1em", textTransform:"uppercase", color:"#eeeeff" }}>
-                Progressive Overload
+                Recovery Patterns
               </span>
-              {overload.score !== undefined && (
-                <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:800, fontSize:"0.9rem", color:scoreColor(overload.score) }}>
-                  {Math.round(overload.score)}/100
+              {recovery?.score !== undefined && (
+                <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:800, fontSize:"0.9rem", color:scoreColor(recovery.score) }}>
+                  {Math.round(recovery.score)}/100
                 </span>
               )}
             </div>
-            {loading ? <Shimmer height={120} /> : (
-              <>
-                {overload.findings?.map((f,i) => (
-                  <p key={i} style={{ fontFamily:"'DM Sans',sans-serif", fontSize:"0.73rem", color:"#6b6b8f", margin:"0 0 0.5rem 0", lineHeight:1.55 }}>{f}</p>
-                ))}
-                <OverloadTable statuses={overload.muscles} />
-              </>
+            {loading ? <Shimmer height={80} /> : (
+              recovery?.findings?.map((f,i) => (
+                <p key={i} style={{ fontFamily:"'DM Sans',sans-serif", fontSize:"0.73rem", color: f.includes("✓") ? "#6b6b8f" : "#9999bb", margin:"0 0 0.4rem 0", lineHeight:1.55 }}>{f}</p>
+              ))
             )}
           </Card>
-
-          {/* Split detection + recovery */}
-          <div style={{ display:"flex", flexDirection:"column", gap:"1.25rem" }}>
-            <Card>
-              <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:"0.8rem", letterSpacing:"0.1em", textTransform:"uppercase", color:"#eeeeff", display:"block", marginBottom:"0.75rem" }}>
-                Training Split
-              </span>
-              {loading ? <Shimmer height={80} /> : <SplitCard split={split} />}
-            </Card>
-
-            <Card>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"0.75rem" }}>
-                <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:"0.8rem", letterSpacing:"0.1em", textTransform:"uppercase", color:"#eeeeff" }}>
-                  Recovery Patterns
-                </span>
-                {recovery?.score !== undefined && (
-                  <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:800, fontSize:"0.9rem", color:scoreColor(recovery.score) }}>
-                    {Math.round(recovery.score)}/100
-                  </span>
-                )}
-              </div>
-              {loading ? <Shimmer height={80} /> : (
-                recovery?.findings?.map((f,i) => (
-                  <p key={i} style={{ fontFamily:"'DM Sans',sans-serif", fontSize:"0.73rem", color: f.includes("✓") ? "#6b6b8f" : "#9999bb", margin:"0 0 0.4rem 0", lineHeight:1.55 }}>{f}</p>
-                ))
-              )}
-            </Card>
-          </div>
         </div>
       </div>
     </Layout>

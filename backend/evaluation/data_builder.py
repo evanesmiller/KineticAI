@@ -112,6 +112,7 @@ def _build_consistency_data(conn: sqlite3.Connection, user_id: int) -> dict:
         "progressing": [s.muscle for s in overload.statuses if s.trend == "progressing"],
         "stagnating":  [s.muscle for s in overload.statuses if s.trend == "stagnating"],
         "regressing":  [s.muscle for s in overload.statuses if s.trend == "regressing"],
+        "new":         [s.muscle for s in overload.statuses if s.trend == "new"],
     }
 
     return {

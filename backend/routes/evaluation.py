@@ -10,6 +10,8 @@ from datetime import date, timedelta
 from flask import Blueprint, request
 from db.connection import get_db
 from evaluation.data_builder import build_evaluation_data
+from evaluation.progressive_overload import analyse_overload
+from evaluation.split_detector import analyse_split
 from gemini.client import evaluate_workouts
 from routes.utils import success, error, login_required
 from constants import FATIGUE_WINDOW_DAYS
@@ -18,7 +20,7 @@ evaluation_bp = Blueprint("evaluation", __name__, url_prefix="/evaluation")
 
 # Increment this whenever the Gemini prompt logic changes so existing
 # caches are automatically invalidated on the next request.
-PROMPT_VERSION = 7
+PROMPT_VERSION = 14
 
 
 def _window_fingerprint(db, user_id: int) -> str:
@@ -47,6 +49,24 @@ def _window_fingerprint(db, user_id: int) -> str:
     return f"v{PROMPT_VERSION}:{row['max_id']}:{row['cnt']}:all{all_time['total']}:bw{bw}"
 
 
+def _build_advanced(db, user_id: int, result: dict) -> dict:
+    """
+    Compute advanced insights (progressive overload, split detection, recovery
+    patterns) using the Python engine — no Gemini call required.
+    Called on every request so the data is always fresh, separate from cache.
+    """
+    overload = analyse_overload(db, user_id)
+    split    = analyse_split(db, user_id)
+    return {
+        "progressive_overload": overload.to_dict(),
+        "split_detection":      split.to_dict(),
+        "recovery_patterns": {
+            "score":    result.get("categories", {}).get("rest", {}).get("score"),
+            "findings": result.get("categories", {}).get("rest", {}).get("findings", []),
+        },
+    }
+
+
 @evaluation_bp.get("/")
 @login_required
 def get_evaluation(user_id):
@@ -54,6 +74,8 @@ def get_evaluation(user_id):
     Return the Gemini evaluation for the user's past 7 days.
     Serves a cached result if the workout set hasn't changed since
     the last evaluation, avoiding unnecessary Gemini API calls.
+    Advanced insights (overload, split, recovery) are computed fresh every
+    request from the Python engine and appended after the cache check.
     """
     db = get_db()
 
@@ -71,7 +93,9 @@ def get_evaluation(user_id):
     ).fetchone()
 
     if not force and cached and cached["fingerprint"] == fingerprint:
-        return success(json.loads(cached["result_json"]))
+        result = json.loads(cached["result_json"])
+        result["advanced"] = _build_advanced(db, user_id, result)
+        return success(result)
 
     # Workout set has changed — call Gemini and update the cache
     try:
@@ -98,4 +122,5 @@ def get_evaluation(user_id):
     )
     db.commit()
 
+    result["advanced"] = _build_advanced(db, user_id, result)
     return success(result)

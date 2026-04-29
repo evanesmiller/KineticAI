@@ -55,7 +55,7 @@ function LogoMark() {
         <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: "1.4rem", letterSpacing: "0.1em", color: "#eeeeff", lineHeight: 1 }}>
           Kinetic<span style={{ color: "#8b5cf6" }}>AI</span>
         </div>
-        <div style={{ fontSize: "0.6rem", letterSpacing: "0.25em", color: "#6d28d9", fontFamily: "'DM Sans', sans-serif", textTransform: "uppercase" }}>
+        <div style={{ fontSize: "0.6rem", letterSpacing: "0.25em", color: "#8b5cf6", fontFamily: "'DM Sans', sans-serif", textTransform: "uppercase", marginTop: "0.25rem" }}>
           AI Workout Analysis
         </div>
       </div>

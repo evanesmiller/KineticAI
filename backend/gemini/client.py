@@ -161,7 +161,14 @@ def evaluate_workouts(workout_data: dict) -> dict:
         Also consider the detected training split and adherence to it.
 
         Score each category 0-100. Compute a weighted overall score:
-          balance=35%, consistency=25%, rest=22%, volume=18%
+          overall_score = balance×0.35 + consistency×0.25 + rest×0.22 + volume×0.18
+
+        Grade the overall score using these exact thresholds:
+          90-100 → A  (near-perfect, hit all guidelines with minor room to improve)
+          70-89  → B  (solid week, a few clear areas to address)
+          50-69  → C  (decent effort, notable gaps to fix)
+          25-49  → D  (met one or two requirements, neglected the rest)
+          0-24   → F  (failed to meet the requirements)
 
         === BALANCE CATEGORY SCORING RULES ===
         Score starts at 100. Apply the following deductions:
@@ -225,23 +232,33 @@ def evaluate_workouts(workout_data: dict) -> dict:
           abs and spinal_erectors both absent → deduct 8
           Only one of the two absent          → deduct 3
 
-        In balance findings, always include:
-          • A summary of which major muscles hit the 2× target, were under-trained,
-            or were absent — grouped by priority tier
-          • The push:pull and upper:lower set ratios with a plain-English verdict
-          • Any antagonist pair violations with both muscles named
-          • Secondary-muscle credit applied (if any) with an explanation
-          • A positive note for any area that is well-balanced
+        ZERO-SESSION OVERRIDE: If the workouts array is empty or contains no exercises,
+        the balance score is 0. Do not apply individual factor deductions in this case.
+
+        In balance findings, use at most 4 bullet points total. Be concise:
+          • Muscle gaps: list only muscles that are absent (0×) or under-trained (1×),
+            grouped as one line per priority tier — skip tiers with no issues.
+            Format: "HIGH: Lats (0×), Hamstrings (1×) | MED: Chest, Triceps (0×)"
+            If secondary-muscle credit reduced a deduction, append "(SC credit)" inline.
+          • Push:Pull X:Y — one-sentence verdict. Include upper:lower only if it triggered a deduction.
+          • Antagonist violations: list all affected pairs on one line, e.g. "Chest↔Lats, Biceps↔Triceps"
+          • One closing note: either a positive observation if balance is solid, or the single most impactful fix.
+          Omit any bullet if it has nothing to report.
 
         === CONSISTENCY CATEGORY SCORING RULES ===
         Score starts at 100. Use the "consistency_history" field in the training data.
+
+        CRITICAL: The "workouts" array only covers the past 7 days — it is NOT a full history.
+        Do NOT compute weeks_active, weeks_missing, avg_weekly_sessions, or any other
+        historical metric yourself from the workouts array. All historical values are
+        pre-computed in consistency_history — read those exact numbers directly.
 
         FACTOR 1 — Week-over-week training presence (highest weight):
         Use consistency_history.weeks_tracked (completed ISO weeks since first workout)
         and consistency_history.weeks_missing (weeks with zero sessions logged).
 
         Deductions:
-          - Each missing week: −8 (total capped at −40 from this factor)
+          - Each missing week: −8 (total capped at −50 from this factor)
           - max_consecutive_missing_weeks ≥ 2: additional −5 per consecutive week beyond the first
           - If weeks_tracked < 2: insufficient history — apply no deductions and note it
 
@@ -252,8 +269,8 @@ def evaluate_workouts(workout_data: dict) -> dict:
 
         Deductions:
           - Shortfall of 1 session below average: −5
-          - Shortfall of 2 sessions below average: −12
-          - Shortfall of 3+ sessions below average: −20
+          - Shortfall of 2 sessions below average: −15
+          - Shortfall of 3+ sessions below average: −30
           - At or above average: no deduction ✓
           - If avg_weekly_sessions < 1 (very new user): note it, skip this factor
 
@@ -262,18 +279,21 @@ def evaluate_workouts(workout_data: dict) -> dict:
           progressing — volume/weight improving week-over-week ✓
           stagnating  — flat for 2+ consecutive trained weeks
           regressing  — volume/weight declining
+          new         — muscle only seen in one calendar week so far (no trend yet)
 
         Deductions:
-          - Each stagnating muscle: −4 (total capped at −16 from this factor)
-          - Each regressing muscle: −6 (total capped at −12 from this factor)
+          - Each stagnating muscle: −5 (total capped at −20 from this factor)
+          - Each regressing muscle: −8 (total capped at −20 from this factor)
           - 3 or more muscles progressing: reduce total deductions by 5 (reward) ✓
-          - If all lists are empty (insufficient history): note it, apply no deductions
+          - Muscles in "new" list have no trend yet — mention them briefly, apply no deduction
+          - If progressing/stagnating/regressing are ALL empty AND new is also empty: note insufficient history, apply no deductions
 
-        In consistency findings, always include:
-          • Training presence: "X of Y past weeks had at least one session" — flag any streaks
-          • Baseline comparison: this week's session count vs. the personal average, with verdict
-          • Overload status: name which muscles are progressing, stagnating, or regressing
-          • A strong positive note if consistency is solid, or the single highest-impact fix if not
+        In consistency findings, use at most 4 bullet points total. Be concise:
+          • Presence: "X/Y weeks active" — note any consecutive missing weeks inline if relevant.
+          • Baseline: "N sessions this week vs. avg M" — one-sentence verdict.
+          • Overload: list progressing/stagnating/regressing muscles on one line each; omit any group that is empty.
+          • One closing note: strong positive if solid, or the single highest-impact fix if not.
+          Omit any bullet if it has nothing to report.
 
         === REST CATEGORY SCORING RULES ===
         The rest score starts at 100. Apply the following deductions:
@@ -288,7 +308,8 @@ def evaluate_workouts(workout_data: dict) -> dict:
           - 1 rest day  → no deduction if split supports it (PPL/high-frequency); deduct 10 otherwise
           - 2–3 rest days → no deduction (optimal range for most splits)
           - 4 rest days → deduct 5 (mild; over-rest is better than under-rest)
-          - 5+ rest days → deduct 10 per extra day above 4 (significant under-training)
+          - 5+ rest days → deduct 15 per extra day above 4 (significant under-training)
+            e.g. 5 days = −15, 6 days = −30, 7 days (full week off) = −45
 
         FACTOR 2 — Same-muscle inter-session rest (within the 7-day window):
         Compute the gap in days between consecutive sessions that trained the same muscle.
@@ -307,18 +328,12 @@ def evaluate_workouts(workout_data: dict) -> dict:
         Cross-reference the detected training split: if the split implies that category should
         have been trained this week (e.g. PPL user skipping legs entirely), increase concern.
 
-        In the rest category findings array, ALWAYS include these specific flags:
-          • How many rest days were taken and whether it falls in the ideal range — explicitly
-            mention the detected training split as context (e.g. "For a PPL split, 1 rest day
-            is appropriate" or "Upper/Lower splits benefit from 2-3 rest days")
-          • Which specific muscle groups (if any) are being trained with insufficient rest
-            between sessions (under 2 days recovery), with the exact gap
-          • Which specific muscle groups (if any) are being over-rested (4+ days between
-            sessions), noting that occasional over-rest is acceptable but chronic skipping is not
-          • If any major muscle category (push/pull/legs) is entirely absent this week,
-            flag it and note whether it appears to be a recurring pattern based on the data
-          • End with a positive note if rest management is well-handled, or the single most
-            important fix if it is not
+        In rest findings, use at most 4 bullet points total. Be concise:
+          • Rest days: "N rest days — [ideal/too few/too many] for [detected split]." One sentence.
+          • Under-rested muscles (if any): list on one line with gaps, e.g. "Quads (0d gap), Lats (1d gap)"
+          • Absent categories / over-rested muscles (if any): one line, flag chronic skipping only if pattern is clear.
+          • One closing note: positive if well-managed, or the single most important fix if not.
+          Omit any bullet if it has nothing to report.
 
         === VOLUME CATEGORY SCORING RULES ===
         Score starts at 100. Apply the following deductions.
@@ -329,6 +344,9 @@ def evaluate_workouts(workout_data: dict) -> dict:
         Baseline: hypertrophy norms are 1–3 exercises × 2–4 sets × 5–10 reps per muscle
         per session. With 2 sessions/week (ideal frequency), the weekly ceiling is
         3 exercises × 4 sets × 10 reps × 2 sessions = 240 total reps per muscle.
+
+        ZERO-SESSION OVERRIDE: If there are 0 training sessions this week (workouts array
+        is empty), the volume score is 0. Do not apply any factor deductions in this case.
 
         FACTOR 1 — Per-muscle weekly rep volume (highest weight):
         Only evaluate muscles that were actually trained this week.
@@ -356,12 +374,13 @@ def evaluate_workouts(workout_data: dict) -> dict:
           Any session > 120 min → deduct 6
           All sessions ≤ 120 min → no deduction ✓
 
-        In volume findings, always include:
-          • Which muscles (if any) are under-stimulated, in the yellow zone, or in the red zone
-            — name them explicitly with their approximate rep count
-          • The intensity distribution verdict with session percentages
-          • Any sessions flagged for exercise density or duration, with specifics
-          • A positive note for any factor that is well-managed
+        In volume findings, use at most 4 bullet points total. Be concise:
+          • Rep volume: list only muscles outside the ideal range on one line each —
+            "Under (<20 reps): X, Y | Yellow (241–360): Z | Red (>360): W". Omit zones with no issues.
+          • Intensity: one-sentence verdict, e.g. "80% high intensity — elevated fatigue risk."
+          • Density/duration flags (if any): note offending sessions briefly on one line.
+          • One closing note: positive if volume is well-managed, or the single most important fix.
+          Omit any bullet if it has nothing to report.
 
         Provide up to 5 workout suggestions following these strict rules:
         - ONLY suggest muscle groups with status "green" or that are absent from
@@ -408,11 +427,6 @@ def evaluate_workouts(workout_data: dict) -> dict:
     response = client.models.generate_content(model="gemini-2.5-flash-lite", contents=prompt)
     result   = _extract_json(response.text)
 
-    score = max(0.0, min(100.0, float(result.get("overall_score", 0))))
-    grade = result.get("grade", "F")
-    if grade not in ("A","B","C","D","F"):
-        grade = _score_to_grade(score)
-
     categories = {}
     for cat in ("balance","consistency","rest","volume"):
         raw = result.get("categories", {}).get(cat, {})
@@ -420,6 +434,10 @@ def evaluate_workouts(workout_data: dict) -> dict:
             "score":    max(0.0, min(100.0, float(raw.get("score", 0)))),
             "findings": [str(f) for f in raw.get("findings", [])],
         }
+
+    weights = {"balance": 0.35, "consistency": 0.25, "rest": 0.22, "volume": 0.18}
+    score = round(sum(categories[c]["score"] * w for c, w in weights.items()), 1)
+    grade = _score_to_grade(score)
 
     suggestions = []
     for s in result.get("suggestions", [])[:5]:
@@ -444,7 +462,7 @@ def evaluate_workouts(workout_data: dict) -> dict:
 
 def _score_to_grade(score: float) -> str:
     if score >= 90: return "A"
-    if score >= 80: return "B"
-    if score >= 70: return "C"
-    if score >= 60: return "D"
+    if score >= 70: return "B"
+    if score >= 50: return "C"
+    if score >= 25: return "D"
     return "F"
