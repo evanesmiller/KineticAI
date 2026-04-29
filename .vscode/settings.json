@@ -1,6 +1,0 @@
-{
-  "python.defaultInterpreterPath": "/Users/evan3mill/Desktop/CPSC 481/KineticAI/backend/venv/bin/python3",
-  "python.analysis.extraPaths": [
-    "/Users/evan3mill/Desktop/CPSC 481/KineticAI/backend/venv/lib/python3.14/site-packages"
-  ]
-}
