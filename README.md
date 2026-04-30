@@ -45,8 +45,30 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 4. Replace Google Gemini API and Flask keys in .env file
-Gemini 2.5 Flash Lite (Free tier ~ 20 requests/day)
+### 4. Set Up Environment Variables
+
+Create a file called `.env` inside the `backend/` folder:
+
+```
+backend/.env
+```
+
+Paste the following into it and fill in your values:
+
+```
+GEMINI_API_KEY=your_gemini_api_key_here
+SECRET_KEY=any_long_random_string_here
+```
+
+**Getting a Gemini API key (free):**
+1. Go to [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+2. Sign in with a Google account
+3. Click **Create API key** and copy it
+4. Paste it as the value for `GEMINI_API_KEY` in your `.env` file
+
+> The free tier allows ~1,500 requests/day with Gemini 2.5 Flash Lite.
+
+**SECRET_KEY** can be any long random string — it's used by Flask to sign session cookies. Example: `my-super-secret-key-12345`. Change it to something unique.
 
 ### 5. Start Backend Server
 ```
