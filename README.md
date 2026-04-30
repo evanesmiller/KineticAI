@@ -66,7 +66,7 @@ SECRET_KEY=any_long_random_string_here
 3. Click **Create API key** and copy it
 4. Paste it as the value for `GEMINI_API_KEY` in your `.env` file
 
-> The free tier allows ~1,500 requests/day with Gemini 2.5 Flash Lite.
+> The free tier allows ~1,000 requests/day with Gemini 2.5 Flash Lite.
 
 **SECRET_KEY** can be any long random string — it's used by Flask to sign session cookies. Example: `my-super-secret-key-12345`. Change it to something unique.
 
