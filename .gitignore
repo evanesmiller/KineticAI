@@ -9,3 +9,7 @@ venv/
 
 # Misc
 .DS_Store
+.vscode/
+
+# Database
+backend/instance/
