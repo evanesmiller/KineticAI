@@ -274,7 +274,7 @@ def _eval_balance(data: dict) -> CategoryResult:
     """
     _HIGH_PRIORITY   = {"quads", "chest", "lats", "hamstrings"}
     _MEDIUM_PRIORITY = {"glutes", "front_delts", "rear_delts", "traps", "biceps", "triceps"}
-    _LOW_PRIORITY    = {"calves", "forearms", "abs", "spinal_erectors", "side_delts"}
+    _LOW_PRIORITY    = {"calves", "forearms", "abs", "spinal_erectors", "side_delts", "adductors"}
 
     def _multiplier(muscle: str) -> float:
         if muscle in _HIGH_PRIORITY:   return 2.0

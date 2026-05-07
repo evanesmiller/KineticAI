@@ -28,6 +28,7 @@ MUSCLE_GROUPS = [
     "hamstrings",
     "quads",
     "calves",
+    "adductors",
 ]
 
 # ---------------------------------------------------------------------------
@@ -99,7 +100,7 @@ PUSH_MUSCLES = {"chest", "front_delts", "side_delts", "triceps"}
 PULL_MUSCLES = {"lats", "rear_delts", "traps", "biceps", "forearms"}
 
 # Leg muscles
-LEG_MUSCLES = {"quads", "hamstrings", "glutes", "calves"}
+LEG_MUSCLES = {"quads", "hamstrings", "glutes", "calves", "adductors"}
 
 # Core / stabiliser muscles
 CORE_MUSCLES = {"abs", "spinal_erectors"}

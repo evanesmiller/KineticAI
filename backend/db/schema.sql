@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS muscle_groups (
     name TEXT    NOT NULL UNIQUE   -- e.g. 'biceps', 'quads', etc.
 );
 
--- Seed the 15 core muscles required by the 3D model frontend.
+-- Seed the 16 core muscles required by the 3D model frontend.
 -- INSERT OR IGNORE means re-running init is safe.
 INSERT OR IGNORE INTO muscle_groups (name) VALUES
     ('biceps'),
@@ -43,7 +43,8 @@ INSERT OR IGNORE INTO muscle_groups (name) VALUES
     ('glutes'),
     ('hamstrings'),
     ('quads'),
-    ('calves');
+    ('calves'),
+    ('adductors');
 
 -- ---------------------------------------------------------------
 -- WORKOUTS

@@ -25,7 +25,7 @@ const LEGEND = [
 
 // ── Muscle definitions per view ────────────────────────────────────────────
 const BACK_MUSCLES = [
-  { key:"traps",           mask:"traps_back.png",          label:"Traps" },
+  { key:"traps",           mask:"traps_back.png",     label:"Traps" },
   { key:"rear_delts",      mask:"reardelts.png",      label:"Rear Delts" },
   { key:"lats",            mask:"lats.png",           label:"Lats" },
   { key:"triceps",         mask:"triceps.png",        label:"Triceps" },
@@ -33,7 +33,8 @@ const BACK_MUSCLES = [
   { key:"glutes",          mask:"glutes.png",         label:"Glutes" },
   { key:"hamstrings",      mask:"hamstrings.png",     label:"Hamstrings" },
   { key:"calves",          mask:"calves.png",         label:"Calves" },
-  { key:"forearms",        mask:"forearms_back.png",  label:"Forearms" }
+  { key:"forearms",        mask:"forearms_back.png",  label:"Forearms" },
+  { key:"adductors",       mask:"adductors_back.png", label:"Adductors" }
 ];
 
 // Uncomment entries as you create front mask PNGs
@@ -44,7 +45,8 @@ const FRONT_MUSCLES = [
   { key:"biceps",      mask:"biceps.png",             label:"Biceps" },
   { key:"forearms",    mask:"forearms_front.png",     label:"Forearms" },
   { key:"abs",         mask:"abs.png",                label:"Abs" },
-  { key:"quads",       mask:"quads.png",       label:"Quads" }
+  { key:"quads",       mask:"quads.png",              label:"Quads" },
+  { key:"adductors",   mask:"adductors_front.png",    label:"Adductors" }
 ];
 
 const VIEWS = {
