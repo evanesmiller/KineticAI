@@ -114,6 +114,11 @@ def analyse_overload(conn: sqlite3.Connection, user_id: int) -> OverloadResult:
 
     for muscle in MUSCLE_GROUPS:
         if muscle not in muscle_exercises:
+            statuses.append(MuscleOverloadStatus(
+                muscle=muscle,
+                trend="new",
+                note="Not logged yet — start tracking this muscle.",
+            ))
             continue
 
         exercises = muscle_exercises[muscle]

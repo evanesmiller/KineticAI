@@ -5,7 +5,7 @@ import { apiCall } from "../hooks/useFetch";
 const MUSCLE_GROUPS = [
   "biceps","triceps","forearms","chest","abs",
   "front_delts","side_delts","rear_delts","traps","lats",
-  "spinal_erectors","glutes","hamstrings","quads","calves",
+  "spinal_erectors","glutes","hamstrings","quads","calves","adductors",
 ];
 
 const INTENSITY_OPTIONS = ["low","moderate","high"];

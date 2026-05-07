@@ -174,15 +174,18 @@ function OverloadGrid({ statuses }) {
     .filter(s => !hiddenTrends.has(s.trend))
     .sort((a, b) => (PRIORITY_ORDER[a.trend] ?? 4) - (PRIORITY_ORDER[b.trend] ?? 4));
 
+  const rowCount = hiddenTrends.size === 0 ? 4 : (visible.length % 3 === 0 ? 3 : 2);
+
   return (
     <div>
-      {/* 2-row muscle bullets */}
-      <div style={{ display:"grid", gridTemplateRows:"repeat(2,auto)", gridAutoFlow:"column", gridAutoColumns:"1fr", gap:"0.5rem", marginBottom:"1rem" }}>
+      <div style={{ display:"grid", gridTemplateRows:`repeat(${rowCount},auto)`, gridAutoFlow:"column", gridAutoColumns:"1fr", gap:"0.5rem", marginBottom:"1rem" }}>
         {visible.map((s, i) => {
           const color = trendColor(s.trend);
           const pctLabel = s.pct_change !== null
             ? `${s.pct_change >= 0 ? "+" : ""}${s.pct_change}% since first logged`
-            : "log again to track progression";
+            : s.exercise_name
+              ? "log again to track progression"
+              : "not logged yet";
           return (
             <div key={i} style={{ background:"#151525", borderRadius:"6px", padding:"0.55rem 0.75rem", borderLeft:`3px solid ${color}33`, borderTop:`1px solid #1e1e35`, borderRight:`1px solid #1e1e35`, borderBottom:`1px solid #1e1e35` }}>
               <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:"0.82rem", color:"#eeeeff", textTransform:"capitalize", marginBottom:"0.1rem" }}>
